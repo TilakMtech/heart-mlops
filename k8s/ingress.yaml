@@ -1,0 +1,19 @@
+# Requires the NGINX ingress controller: `minikube addons enable ingress`
+# Add "<minikube ip> heart-api.local" to /etc/hosts (or 127.0.0.1 with minikube tunnel).
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: heart-api
+  namespace: heart-mlops
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: heart-api.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: heart-api
+                port: {number: 80}

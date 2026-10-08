@@ -1,0 +1,16 @@
+{
+  "rows": 303,
+  "positive_rate": 0.459,
+  "missing_raw": {
+    "ca": 4,
+    "thal": 2
+  },
+  "top_correlations_with_target": {
+    "thal": 0.526,
+    "ca": 0.46,
+    "exang": 0.432,
+    "oldpeak": 0.425,
+    "thalach": 0.417,
+    "cp": 0.414
+  }
+}

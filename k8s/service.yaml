@@ -1,0 +1,15 @@
+# LoadBalancer: on Minikube run `minikube tunnel` to get an external IP
+# (Docker Desktop maps it to localhost automatically).
+apiVersion: v1
+kind: Service
+metadata:
+  name: heart-api
+  namespace: heart-mlops
+  labels: {app: heart-api}
+spec:
+  type: LoadBalancer
+  selector: {app: heart-api}
+  ports:
+    - name: http
+      port: 80
+      targetPort: http

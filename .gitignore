@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.coverage
+coverage.xml
+reports/junit.xml
+reports/coverage.xml
+.ipynb_checkpoints/
+
+# MLflow local store (absolute paths, regenerate with `make train`; CI uploads it as an artifact)
+mlruns/
+mlartifacts/
+
+# Logs / OS
+*.log
+.DS_Store
+.idea/
+.vscode/

@@ -1,0 +1,165 @@
+name: ci-cd
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      full_search:
+        description: "Run the full hyper-parameter grid (slower)"
+        type: boolean
+        default: false
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PYTHON_VERSION: "3.11"
+  IMAGE_NAME: heart-risk-api
+
+jobs:
+  # ------------------------------------------------------------------ 1. lint
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - run: pip install flake8==7.1.1
+      - name: flake8
+        run: flake8 --format='%(path)s:%(row)d:%(col)d %(code)s %(text)s' --tee --output-file=flake8-report.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: lint-report
+          path: flake8-report.txt
+
+  # ------------------------------------------------------------------ 1b. manifests
+  k8s-validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install kustomize + kubeconform
+        run: |
+          curl -sSL https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv5.4.3/kustomize_v5.4.3_linux_amd64.tar.gz | tar xz
+          curl -sSL https://github.com/yannh/kubeconform/releases/download/v0.6.7/kubeconform-linux-amd64.tar.gz | tar xz
+      - name: Render and validate
+        run: |
+          ./kustomize build k8s > rendered.yaml
+          ./kubeconform -strict -summary -kubernetes-version 1.31.0 rendered.yaml
+      - uses: actions/upload-artifact@v4
+        with:
+          name: k8s-rendered
+          path: rendered.yaml
+
+  # ------------------------------------------------------------------ 2. unit tests
+  test:
+    needs: lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: requirements*.txt
+      - run: pip install -r requirements-dev.txt
+      - name: pytest
+        run: |
+          pytest --junitxml=reports/junit.xml \
+                 --cov=heart --cov=api --cov-report=xml:reports/coverage.xml --cov-report=term
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-reports
+          path: reports/*.xml
+
+  # ------------------------------------------------------------------ 3. train
+  train:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: requirements*.txt
+      - run: pip install -r requirements.txt tabulate
+      - name: Download data
+        run: python scripts/download_data.py --force
+      - name: EDA
+        run: PYTHONPATH=src python -m heart.eda
+      - name: Train + track with MLflow
+        run: |
+          set -o pipefail
+          FLAG="--quick"
+          if [ "${{ github.event_name }}" = "push" ] || [ "${{ inputs.full_search }}" = "true" ]; then FLAG=""; fi
+          PYTHONPATH=src python -m heart.train $FLAG 2>&1 | tee train.log
+      - name: Quality gate (ROC-AUC >= 0.85)
+        run: |
+          python - <<'EOF'
+          import json, sys
+          m = json.load(open("models/model_meta.json"))["metrics"]
+          auc = m["cv_roc_auc_mean"]
+          print(f"cv_roc_auc_mean={auc:.4f}")
+          sys.exit(0 if auc >= 0.85 else 1)
+          EOF
+      - name: Job summary
+        run: |
+          echo "## Model comparison" >> $GITHUB_STEP_SUMMARY
+          python -c "import pandas as pd; print(pd.read_csv('reports/model_comparison.csv')[['model','cv_roc_auc_mean','cv_accuracy_mean','test_roc_auc','test_recall']].to_markdown(index=False))" >> $GITHUB_STEP_SUMMARY || true
+          echo '```json' >> $GITHUB_STEP_SUMMARY; cat models/model_meta.json >> $GITHUB_STEP_SUMMARY; echo '```' >> $GITHUB_STEP_SUMMARY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: model
+          path: |
+            models/model.joblib
+            models/model_meta.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: training-outputs
+          path: |
+            train.log
+            reports/
+            mlruns/
+            data/processed/heart_clean.csv
+
+  # ------------------------------------------------------------------ 4. container
+  docker:
+    needs: [train, k8s-validate]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: model
+          path: models
+      - name: Build image
+        run: docker build -t $IMAGE_NAME:${{ github.sha }} -t $IMAGE_NAME:latest .
+      - name: Run container + smoke test
+        run: |
+          docker run -d --name api -p 8000:8000 $IMAGE_NAME:latest
+          ./scripts/smoke_test.sh http://localhost:8000
+      - name: Container logs
+        if: always()
+        run: docker logs api > container.log 2>&1; cat container.log
+      - name: Push to GHCR (main only)
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+          REPO=ghcr.io/$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')/$IMAGE_NAME
+          docker tag $IMAGE_NAME:latest $REPO:latest
+          docker tag $IMAGE_NAME:latest $REPO:${{ github.sha }}
+          docker push $REPO:latest && docker push $REPO:${{ github.sha }}
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: container-logs
+          path: container.log

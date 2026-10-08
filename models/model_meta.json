@@ -1,0 +1,46 @@
+{
+  "model_name": "logreg",
+  "version": "2026.10.08-1744",
+  "mlflow_parent_run": "d3c6e1ffef894870ad2a8c6ac8929a3f",
+  "mlflow_run_id": "1a8e739f363d4f86ace5bf1066763d76",
+  "best_params": {
+    "C": 0.3,
+    "class_weight": "balanced",
+    "penalty": "l1"
+  },
+  "metrics": {
+    "cv_accuracy_mean": 0.8388,
+    "cv_accuracy_std": 0.0161,
+    "cv_precision_mean": 0.8696,
+    "cv_precision_std": 0.0604,
+    "cv_recall_mean": 0.7739,
+    "cv_recall_std": 0.0775,
+    "cv_f1_mean": 0.8134,
+    "cv_f1_std": 0.0257,
+    "cv_roc_auc_mean": 0.9052,
+    "cv_roc_auc_std": 0.0132,
+    "test_accuracy": 0.8852,
+    "test_precision": 0.8387,
+    "test_recall": 0.9286,
+    "test_f1": 0.8814,
+    "test_roc_auc": 0.9697
+  },
+  "input_features": [
+    "age",
+    "trestbps",
+    "chol",
+    "thalach",
+    "oldpeak",
+    "cp",
+    "restecg",
+    "slope",
+    "ca",
+    "thal",
+    "sex",
+    "fbs",
+    "exang"
+  ],
+  "threshold": 0.5,
+  "sklearn_version": "1.5.2",
+  "trained_at": "2026-10-08T17:44:24"
+}

@@ -1,0 +1,30 @@
+digraph G {
+  rankdir=TB; compound=true; fontname="Helvetica"; nodesep=0.35; ranksep=0.55;
+  node [shape=box, style="rounded,filled", fontname="Helvetica", fontsize=11, fillcolor="#ffffff", color="#264653"];
+  edge [color="#555555", fontname="Helvetica", fontsize=9];
+
+  subgraph cluster_data { label="1. Data & EDA"; style="rounded,filled"; fillcolor="#e9f5f3"; color="#2a9d8f";
+    uci [label="UCI repository\n(+ GitHub mirror)"]; dl [label="download_data.py"]; clean [label="heart.data\nclean / validate"]; eda [label="heart.eda\nfigures"];
+    uci -> dl -> clean -> eda; {rank=same; uci; dl; clean; eda;} }
+
+  subgraph cluster_train { label="2-4. Training & packaging"; style="rounded,filled"; fillcolor="#fdf0e6"; color="#e76f51";
+    fe [label="sklearn Pipeline\nFeatureBuilder → Impute → Scale/One-hot"]; gs [label="GridSearchCV × 4 models\nStratified 5-fold, ROC-AUC"];
+    mlf [label="MLflow tracking\nparams · metrics · plots · models\n+ model registry", shape=cylinder, fillcolor="#fff7d6"];
+    art [label="models/model.joblib\nmodel_meta.json", shape=note];
+    fe -> gs; gs -> mlf [label="log"]; {rank=same; fe; gs; mlf; art;} gs -> art [label="best by CV AUC"]; }
+
+  subgraph cluster_ci { label="5. GitHub Actions"; style="rounded,filled"; fillcolor="#eef1fb"; color="#3d5a80";
+    lint [label="lint\n(flake8)"]; k8sv [label="k8s-validate\n(kustomize+kubeconform)"]; test [label="pytest\n+ coverage"]; train [label="train + quality gate\nAUC ≥ 0.85"]; dock [label="docker build\n+ smoke test → GHCR"];
+    lint -> test -> train -> dock; k8sv -> dock; {rank=same; lint; test; train; dock; k8sv;} }
+
+  subgraph cluster_k8s { label="6-8. Serving on Kubernetes (Minikube)"; style="rounded,filled"; fillcolor="#f3eefb"; color="#6d597a";
+    ing [label="Ingress (nginx)\nheart-api.local\n+ LoadBalancer svc"]; pods [label="Deployment heart-api ×2 (HPA 2-5)\nFastAPI /predict /health /metrics\nJSON request logs"];
+    prom [label="Prometheus\n(pod discovery)"]; graf [label="Grafana\ndashboard"];
+    ing -> pods; prom -> pods [label="scrape /metrics", dir=back]; prom -> graf; {rank=same; ing; pods; prom; graf;} }
+
+  client [label="Client / curl /\nload_test.py", shape=oval, fillcolor="#f1f1f1"];
+  clean -> fe [lhead=cluster_train];
+  art -> dock [style=dashed, label="baked into image"];
+  dock -> pods [label="image", style=dashed];
+  client -> ing; {rank=same; client;}
+}
