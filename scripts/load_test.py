@@ -28,16 +28,29 @@ def main() -> None:
     args = ap.parse_args()
 
     rows = pd.read_csv(CLEAN_CSV)[INPUT_FEATURES].dropna().to_dict("records")
-    ok = bad = 0
-    for _ in range(args.n):
+    session = requests.Session()
+    session.trust_env = False  # ignore system/corporate proxy settings for local endpoints
+    print(f"Sending {args.n} requests to {args.url}/predict at ~{args.rps} req/s ...", flush=True)
+    ok = bad = errors = 0
+    for i in range(1, args.n + 1):
         rec = {k: (int(v) if float(v).is_integer() else v) for k, v in random.choice(rows).items()}
         if random.random() < args.invalid_share:
             rec["age"] = 999
-        r = requests.post(f"{args.url}/predict", json=rec, timeout=5)
-        ok += r.status_code == 200
-        bad += r.status_code != 200
+        try:
+            r = session.post(f"{args.url}/predict", json=rec, timeout=5)
+            ok += r.status_code == 200
+            bad += r.status_code != 200
+        except requests.RequestException as exc:
+            errors += 1
+            if errors <= 3:
+                print(f"  request {i} failed: {exc}", flush=True)
+            if errors == 10 and ok == 0:
+                raise SystemExit("10 failures, 0 successes - is the URL reachable? "
+                                 "(is minikube tunnel running?)")
+        if i % 25 == 0 or i == args.n:
+            print(f"  {i}/{args.n}  ok={ok} non_200={bad} errors={errors}", flush=True)
         time.sleep(1 / args.rps)
-    print(f"sent={args.n} ok={ok} non_200={bad}")
+    print(f"done: sent={args.n} ok={ok} non_200={bad} errors={errors}")
 
 
 if __name__ == "__main__":
