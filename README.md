@@ -103,15 +103,17 @@ python scripts/load_test.py --n 300 --rps 5  # generate traffic
 ./scripts/deploy_minikube.sh                 # build, load image, kubectl apply -k k8s/, smoke test
 ```
 
-Access options:
+Access options (keep `minikube tunnel` running in a second terminal for the first two):
 
 | Method | How |
 |--------|-----|
-| NodePort URL | `minikube service heart-api -n heart-mlops --url` |
-| LoadBalancer | `minikube tunnel` (separate terminal) → `kubectl -n heart-mlops get svc heart-api` → EXTERNAL-IP |
-| Ingress | `echo "$(minikube ip) heart-api.local" \| sudo tee -a /etc/hosts` → `curl http://heart-api.local/health` (with the docker driver on macOS, use `127.0.0.1` + `minikube tunnel`) |
-| Prometheus | `minikube service prometheus -n heart-mlops` |
-| Grafana | `minikube service grafana -n heart-mlops` (dashboard *MLOps → Heart Disease API*) |
+| LoadBalancer | `kubectl -n heart-mlops get svc heart-api` → EXTERNAL-IP `127.0.0.1` → `curl http://127.0.0.1:8080/health` |
+| Ingress | `echo "127.0.0.1 heart-api.local" \| sudo tee -a /etc/hosts` (once) → `curl http://heart-api.local/health` |
+| Port-forward | `kubectl -n heart-mlops port-forward svc/heart-api 18080:8080` → `http://localhost:18080` |
+| Prometheus | `kubectl -n heart-mlops port-forward svc/prometheus 9090:9090` → <http://localhost:9090> |
+| Grafana | `kubectl -n heart-mlops port-forward svc/grafana 3000:3000` → <http://localhost:3000> (dashboard *MLOps → Heart Disease API*) |
+
+On Linux with the docker driver, use `$(minikube ip)` instead of `127.0.0.1` in `/etc/hosts`.
 
 Tear down: `make k8s-delete`.
 

@@ -1,5 +1,5 @@
 # LoadBalancer: on Minikube run `minikube tunnel` to get an external IP
-# (Docker Desktop maps it to localhost automatically).
+# (on macOS + docker driver it appears as 127.0.0.1:8080).
 apiVersion: v1
 kind: Service
 metadata:
@@ -11,5 +11,5 @@ spec:
   selector: {app: heart-api}
   ports:
     - name: http
-      port: 80
+      port: 8080          # 8080 so it does not clash with the Ingress on :80 under `minikube tunnel`
       targetPort: http

@@ -16,4 +16,4 @@ spec:
             backend:
               service:
                 name: heart-api
-                port: {number: 80}
+                port: {number: 8080}

@@ -15,6 +15,6 @@ The report (`reports/REPORT.md` / `reports/Heart_Disease_MLOps_Report.docx`) has
 | 8 | `08_swagger_predict.png` | FastAPI `/docs` → POST /predict response | http://localhost:8000/docs |
 | 9 | `09_k8s_resources.png` | `kubectl -n heart-mlops get pods,svc,ingress,hpa` | after `make k8s-deploy` |
 | 10 | `10_k8s_predict_ingress.png` | `curl` to the Ingress / LoadBalancer URL returning a prediction | see README §7 |
-| 11 | `11_prometheus_targets.png` | Prometheus → Status → Targets (heart-api UP) | `minikube service prometheus -n heart-mlops` |
+| 11 | `11_prometheus_targets.png` | Prometheus → Status → Targets (heart-api UP) | `kubectl -n heart-mlops port-forward svc/prometheus 9090:9090` |
 | 12 | `12_grafana_dashboard.png` | Grafana "Heart Disease API" dashboard with traffic | run `scripts/load_test.py` first |
 | 13 | `13_api_json_logs.png` | `kubectl logs` showing JSON request/prediction logs | `kubectl -n heart-mlops logs deploy/heart-api` |
