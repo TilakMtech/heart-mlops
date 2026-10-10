@@ -24,6 +24,11 @@ RANDOM_STATE = 42
 TEST_SIZE = 0.2
 CV_FOLDS = 5
 
+# Fixed before evaluation: favour sensitivity; allow more false positives.
+DECISION_THRESHOLD = 0.4
+MIN_CV_ROC_AUC = 0.85
+MIN_CV_RECALL = 0.80
+
 # --- Schema (UCI Cleveland "processed" file, 14 attributes) -----------------
 RAW_COLUMNS = [
     "age", "sex", "cp", "trestbps", "chol", "fbs", "restecg",
@@ -34,7 +39,7 @@ TARGET = "target"
 # Continuous measurements -> impute(median) + scale
 NUMERIC_FEATURES = ["age", "trestbps", "chol", "thalach", "oldpeak"]
 # Engineered continuous features (added by HeartFeatureBuilder)
-ENGINEERED_FEATURES = ["hr_reserve_pct", "chol_per_age", "st_risk_flag"]
+ENGINEERED_FEATURES = ["hr_reserve_pct", "age_oldpeak", "st_risk_flag"]
 # Multi-level codes -> impute(mode) + one-hot
 CATEGORICAL_FEATURES = ["cp", "restecg", "slope", "ca", "thal"]
 # Already 0/1 -> impute(mode) only

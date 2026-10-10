@@ -69,7 +69,7 @@ Outputs: `models/model.joblib`, `models/model_meta.json`, `reports/model_compari
 
 ```bash
 make lint
-make test          # 37 tests: data, features, model, API
+make test          # tests: data, features, model, API
 ```
 
 ## 6. Serve locally / Docker
@@ -124,7 +124,7 @@ Tear down: `make k8s-delete`.
 1. **lint** – flake8 (report uploaded)
 2. **k8s-validate** – `kustomize build` + `kubeconform` schema check
 3. **test** – pytest with JUnit + coverage XML artifacts
-4. **train** – download data → EDA → train (quick grid on PRs, full on `main`) → **quality gate** (CV ROC-AUC ≥ 0.85) → model + MLflow store + reports uploaded; comparison table in the job summary
+4. **train** – download data → EDA → train (quick grid on PRs, full on `main`) → **quality gate** (CV ROC-AUC ≥ 0.85 and mean CV recall ≥ 0.80 at threshold 0.4) → model + MLflow store + reports uploaded; comparison table in the job summary
 5. **docker** – build image with the freshly trained model, run it, smoke test, upload container logs, push to GHCR on `main`
 
 Any failing lint rule, test, quality gate or smoke check fails the workflow.

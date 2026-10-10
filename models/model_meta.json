@@ -1,29 +1,38 @@
 {
   "model_name": "logreg",
-  "version": "2026.10.09-1048",
-  "mlflow_parent_run": "74c6a623894340ccaae9eabdcaed634a",
-  "mlflow_run_id": "44ede95366d04f039a44ff4f46a1c7c9",
+  "version": "2026.10.10-1316",
+  "mlflow_parent_run": "6ba1a8df13d4444595b6f53b7eb8ab8e",
+  "mlflow_run_id": "80d693c754104caf9bcbfd91dc5c16cb",
   "best_params": {
     "C": 0.3,
     "class_weight": "balanced",
     "penalty": "l1"
   },
   "metrics": {
-    "cv_accuracy_mean": 0.8388,
-    "cv_accuracy_std": 0.0161,
-    "cv_precision_mean": 0.8696,
-    "cv_precision_std": 0.0604,
-    "cv_recall_mean": 0.7739,
-    "cv_recall_std": 0.0775,
-    "cv_f1_mean": 0.8134,
-    "cv_f1_std": 0.0257,
+    "cv_accuracy_mean": 0.8096,
+    "cv_accuracy_std": 0.0347,
+    "cv_precision_mean": 0.7631,
+    "cv_precision_std": 0.0515,
+    "cv_recall_mean": 0.8553,
+    "cv_recall_std": 0.0455,
+    "cv_f1_mean": 0.8051,
+    "cv_f1_std": 0.033,
     "cv_roc_auc_mean": 0.9052,
     "cv_roc_auc_std": 0.0132,
-    "test_accuracy": 0.8852,
-    "test_precision": 0.8387,
-    "test_recall": 0.9286,
-    "test_f1": 0.8814,
-    "test_roc_auc": 0.9697
+    "cv_recall_at_05_mean": 0.7739,
+    "cv_recall_at_05_std": 0.0775,
+    "cv_precision_at_05_mean": 0.8696,
+    "cv_precision_at_05_std": 0.0604,
+    "test_accuracy": 0.8689,
+    "test_precision": 0.7941,
+    "test_recall": 0.9643,
+    "test_f1": 0.871,
+    "test_roc_auc": 0.9697,
+    "test_accuracy_at_05": 0.8852,
+    "test_precision_at_05": 0.8387,
+    "test_recall_at_05": 0.9286,
+    "test_f1_at_05": 0.8814,
+    "test_roc_auc_at_05": 0.9697
   },
   "input_features": [
     "age",
@@ -40,7 +49,18 @@
     "fbs",
     "exang"
   ],
-  "threshold": 0.5,
+  "threshold": 0.4,
+  "threshold_policy": "fixed before evaluation; favour recall; not tuned on hold-out",
+  "engineered_features": [
+    "hr_reserve_pct",
+    "age_oldpeak",
+    "st_risk_flag"
+  ],
+  "selection_rule": "highest training CV ROC-AUC; candidate order breaks exact ties",
+  "quality_gate": {
+    "min_cv_roc_auc": 0.85,
+    "min_cv_recall": 0.8
+  },
   "sklearn_version": "1.5.2",
-  "trained_at": "2026-10-09T10:48:32"
+  "trained_at": "2026-10-10T13:16:18"
 }

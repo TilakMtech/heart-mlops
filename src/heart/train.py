@@ -44,7 +44,27 @@ from heart.data import build_clean_dataset, split_xy  # noqa: E402
 from heart.features import build_pipeline, transformed_feature_names  # noqa: E402
 
 log = logging.getLogger("train")
-SCORING = ["accuracy", "precision", "recall", "f1", "roc_auc"]
+METRICS = ["accuracy", "precision", "recall", "f1", "roc_auc"]
+
+
+def threshold_scores(estimator, X, y):
+    """Score each validation fold at the same threshold used by the API."""
+    proba = estimator.predict_proba(X)[:, 1]
+    pred = proba >= C.DECISION_THRESHOLD
+    return {
+        "accuracy": accuracy_score(y, pred),
+        "precision": precision_score(y, pred, zero_division=0),
+        "recall": recall_score(y, pred, zero_division=0),
+        "f1": f1_score(y, pred, zero_division=0),
+        "roc_auc": roc_auc_score(y, proba),
+        "recall_at_05": recall_score(y, proba >= 0.5, zero_division=0),
+        "precision_at_05": precision_score(y, proba >= 0.5, zero_division=0),
+    }
+
+
+def select_winner(results):
+    # Stable candidate order breaks exact CV ties; never inspect hold-out scores.
+    return max(results, key=lambda c: c.result["cv_roc_auc_mean"])
 
 
 @dataclass
@@ -103,9 +123,10 @@ def _plot_eval(pipe, X_test, y_test, name: str, out: Path) -> list[Path]:
     out.mkdir(parents=True, exist_ok=True)
     paths = []
     fig, axes = plt.subplots(1, 3, figsize=(16, 4.6))
-    ConfusionMatrixDisplay.from_estimator(pipe, X_test, y_test, ax=axes[0], cmap="Blues",
-                                          display_labels=["No disease", "Disease"])
-    axes[0].set_title("Confusion matrix (hold-out)")
+    ConfusionMatrixDisplay.from_predictions(
+        y_test, pipe.predict_proba(X_test)[:, 1] >= C.DECISION_THRESHOLD,
+        ax=axes[0], cmap="Blues", display_labels=["No disease", "Disease"])
+    axes[0].set_title(f"Hold-out (threshold={C.DECISION_THRESHOLD})")
     RocCurveDisplay.from_estimator(pipe, X_test, y_test, ax=axes[1], name=name)
     axes[1].plot([0, 1], [0, 1], "k--", lw=1)
     axes[1].set_title("ROC curve")
@@ -143,9 +164,9 @@ def _importances(pipe) -> pd.Series | None:
     return pd.Series(vals, index=names).sort_values(ascending=False)
 
 
-def _holdout_metrics(pipe, X_test, y_test) -> dict:
+def _holdout_metrics(pipe, X_test, y_test, threshold=C.DECISION_THRESHOLD) -> dict:
     proba = pipe.predict_proba(X_test)[:, 1]
-    pred = (proba >= 0.5).astype(int)
+    pred = (proba >= threshold).astype(int)
     return {
         "test_accuracy": accuracy_score(y_test, pred),
         "test_precision": precision_score(y_test, pred, zero_division=0),
@@ -185,12 +206,15 @@ def run(quick: bool = False) -> dict:
                 search.fit(X_train, y_train)
                 best = search.best_estimator_
 
-                cvres = cross_validate(best, X_train, y_train, cv=cv, scoring=SCORING)
+                cvres = cross_validate(best, X_train, y_train, cv=cv, scoring=threshold_scores)
                 cv_metrics = {}
-                for m in SCORING:
+                for m in METRICS + ["recall_at_05", "precision_at_05"]:
                     cv_metrics[f"cv_{m}_mean"] = float(np.mean(cvres[f"test_{m}"]))
                     cv_metrics[f"cv_{m}_std"] = float(np.std(cvres[f"test_{m}"]))
                 test_metrics = _holdout_metrics(best, X_test, y_test)
+                test_metrics.update({f"{k}_at_05": v for k, v in
+                                     _holdout_metrics(best, X_test, y_test, 0.5).items()})
+                mlflow.log_param("decision_threshold", C.DECISION_THRESHOLD)
 
                 mlflow.set_tags({"model_family": cand.name, "notes": cand.notes,
                                  "engineered_features": str(cand.use_engineered)})
@@ -219,9 +243,7 @@ def run(quick: bool = False) -> dict:
                          cv_metrics["cv_roc_auc_mean"], test_metrics["test_roc_auc"])
 
         # ---------- selection
-        ranked = sorted(results, key=lambda c: (c.result["cv_roc_auc_mean"],
-                                                c.result["test_roc_auc"]), reverse=True)
-        winner = ranked[0]
+        winner = select_winner(results)
         rows = []
         for c in results:
             scores = {k: v for k, v in c.result.items() if k not in ("best_params", "run_id")}
@@ -266,7 +288,11 @@ def _export(winner: Candidate, X_train: pd.DataFrame, parent_run_id: str) -> dic
         "best_params": {k.replace("model__", ""): v for k, v in winner.result["best_params"].items()},
         "metrics": {k: round(v, 4) for k, v in winner.result.items() if isinstance(v, float)},
         "input_features": list(X_train.columns),
-        "threshold": 0.5,
+        "threshold": C.DECISION_THRESHOLD,
+        "threshold_policy": "fixed before evaluation; favour recall; not tuned on hold-out",
+        "engineered_features": C.ENGINEERED_FEATURES if winner.use_engineered else [],
+        "selection_rule": "highest training CV ROC-AUC; candidate order breaks exact ties",
+        "quality_gate": {"min_cv_roc_auc": C.MIN_CV_ROC_AUC, "min_cv_recall": C.MIN_CV_RECALL},
         "sklearn_version": sklearn.__version__,
         "trained_at": time.strftime("%Y-%m-%dT%H:%M:%S"),
     }

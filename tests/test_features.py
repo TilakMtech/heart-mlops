@@ -16,10 +16,10 @@ def test_feature_builder_adds_columns(raw_df):
 
 def test_hr_reserve_formula():
     X = pd.DataFrame([{c: 0 for c in INPUT_FEATURES}])
-    X[["age", "thalach", "chol"]] = [60, 128, 240]
+    X[["age", "thalach", "oldpeak"]] = [60, 128, 2.5]
     out = HeartFeatureBuilder().transform(X)
     assert np.isclose(out.loc[0, "hr_reserve_pct"], 128 / 160)
-    assert np.isclose(out.loc[0, "chol_per_age"], 4.0)
+    assert np.isclose(out.loc[0, "age_oldpeak"], 150.0)
 
 
 def test_st_risk_flag():
@@ -52,3 +52,14 @@ def test_preprocessor_without_engineering_is_smaller(raw_df):
     a = build_preprocessor(True).fit_transform(X).shape[1]
     b = build_preprocessor(False).fit_transform(X).shape[1]
     assert a == b + len(ENGINEERED_FEATURES)
+
+
+def test_age_oldpeak_missing_zero_and_input_unchanged():
+    X = pd.DataFrame([{c: 1.0 for c in INPUT_FEATURES}] * 3)
+    X["oldpeak"] = [0.0, np.nan, 2.0]
+    X["age"] = [60.0, 60.0, np.nan]
+    original = X.copy(deep=True)
+    out = HeartFeatureBuilder().transform(X)
+    assert out.loc[0, "age_oldpeak"] == 0.0
+    assert out["age_oldpeak"].iloc[1:].isna().all()
+    pd.testing.assert_frame_equal(X, original)

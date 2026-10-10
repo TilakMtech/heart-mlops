@@ -99,15 +99,8 @@ jobs:
           FLAG="--quick"
           if [ "${{ github.event_name }}" = "push" ] || [ "${{ inputs.full_search }}" = "true" ]; then FLAG=""; fi
           PYTHONPATH=src python -m heart.train $FLAG 2>&1 | tee train.log
-      - name: Quality gate (ROC-AUC >= 0.85)
-        run: |
-          python - <<'EOF'
-          import json, sys
-          m = json.load(open("models/model_meta.json"))["metrics"]
-          auc = m["cv_roc_auc_mean"]
-          print(f"cv_roc_auc_mean={auc:.4f}")
-          sys.exit(0 if auc >= 0.85 else 1)
-          EOF
+      - name: Quality gate (CV ROC-AUC >= 0.85 and recall >= 0.80 at threshold 0.4)
+        run: PYTHONPATH=src python -m heart.quality
       - name: Job summary
         run: |
           echo "## Model comparison" >> $GITHUB_STEP_SUMMARY

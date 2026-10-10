@@ -23,7 +23,7 @@ class HeartFeatureBuilder(BaseEstimator, TransformerMixin):
 
     hr_reserve_pct : thalach / (220 - age)  -> share of age-predicted max HR reached
                      during the exercise test (chronotropic response).
-    chol_per_age   : chol / age             -> cholesterol load relative to age.
+    age_oldpeak    : age * oldpeak          -> age/ST-depression interaction (experimental).
     st_risk_flag   : 1 if oldpeak >= 2.0 or exercise-induced angina, else 0.
     """
 
@@ -35,7 +35,7 @@ class HeartFeatureBuilder(BaseEstimator, TransformerMixin):
         age = X["age"].astype(float)
         predicted_max = (220.0 - age).where(lambda s: s > 0)
         X["hr_reserve_pct"] = X["thalach"] / predicted_max
-        X["chol_per_age"] = X["chol"] / age.replace(0, np.nan)
+        X["age_oldpeak"] = age * X["oldpeak"]
         X["st_risk_flag"] = ((X["oldpeak"] >= 2.0) | (X["exang"] == 1)).astype(float)
         return X
 

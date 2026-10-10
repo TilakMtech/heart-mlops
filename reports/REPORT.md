@@ -7,14 +7,9 @@
 
 ## 1. Introduction and objective
 
-The goal is to build a classifier that predicts the presence of heart disease from routine
-clinical measurements and to operate it the way a production model would be operated: the data
-download, training, evaluation, packaging, testing, container build, deployment and monitoring are
-all automated and reproducible from a clean checkout.
+I built this project to take a heart-disease classifier through the full MLOps workflow: prepare the data, compare models, track experiments, package the selected model, and serve predictions through an API. The aim is to make each step repeatable and to check model quality before a new version moves forward.
 
-The solution is organised as a Python package (`src/heart`) used by every stage — notebooks,
-training CLI, unit tests and the API — so there is exactly one implementation of the
-cleaning and feature logic. The architecture is shown in Figure 1.
+The project uses 303 Cleveland records and 13 input measurements. Cleaning and feature processing live in `src/heart`, so training, notebooks, tests, and serving share the same implementation. Docker, Kubernetes, and monitoring complete the deployment workflow shown in Figure 1. This is a learning project on a small dataset; the results do not establish clinical readiness.
 
 ![Figure 1 – Solution architecture](../docs/architecture.png)
 
@@ -73,10 +68,8 @@ depression (`oldpeak`). `chol` and `trestbps` overlap heavily between classes.
 
 ![Figure 4 – Disease rate per category](figures/03_categorical_disease_rate.png)
 
-Asymptomatic chest pain (`cp = 4`), reversible thalassemia defect (`thal = 7`), more coloured
-vessels (`ca`) and exercise angina all carry a disease rate above 70 %. `restecg = 1` has only 4
-patients, so its high rate is not reliable — this is one reason for one-hot encoding with
-`handle_unknown="ignore"` and regularised models.
+The plotted disease rate is above 70% for `cp = 4`, `thal = 7`, `ca = 2` or `3`, and exercise angina; `ca = 1` is below 70%. `restecg = 1` has only 4
+patients, so its high rate is not reliable — I would avoid drawing a strong conclusion from that category. One-hot encoding represents the codes without imposing a numeric ordering; it does not solve the small-sample limitation.
 
 ![Figure 5 – Correlation heatmap](figures/04_correlation_heatmap.png)
 
@@ -92,7 +85,7 @@ The preprocessing is a single scikit-learn `Pipeline`:
 
 1. `HeartFeatureBuilder` (custom transformer) adds three derived features:
    `hr_reserve_pct = thalach / (220 − age)` (share of age-predicted maximum heart rate reached),
-   `chol_per_age = chol / age`, and `st_risk_flag = 1 if oldpeak ≥ 2 or exang = 1`.
+   `age_oldpeak = age * oldpeak` (an experimental age/ST-depression interaction), and `st_risk_flag = 1 if oldpeak ≥ 2 or exang = 1`.
 2. `ColumnTransformer`:
    continuous → median imputation + `StandardScaler`;
    `cp`, `restecg`, `slope`, `ca`, `thal` → mode imputation + one-hot;
@@ -104,41 +97,38 @@ The preprocessing is a single scikit-learn `Pipeline`:
 | Candidate | Search space | Purpose |
 |-----------|--------------|---------|
 | logreg_baseline | C ∈ {0.01…10}, L1/L2; **no engineered features** | Ablation |
-| logreg | C ∈ {0.01…3}, L1/L2, class_weight ∈ {None, balanced} (24 combos) | Interpretable linear model |
+| logreg | C ∈ {0.01…3}, L1/L2, class_weight ∈ {None, balanced} (48 combos) | Interpretable linear model |
 | random_forest | n_estimators, max_depth, min_samples_leaf, max_features (36 combos) | Non-linear bagging |
 | gradient_boosting | n_estimators, learning_rate, max_depth, subsample (16 combos) | Non-linear boosting |
 
 Data is split 80/20 (stratified, seed 42). Each candidate is tuned with `GridSearchCV` on the
 training split using stratified 5-fold CV and ROC-AUC. The best configuration is then
 cross-validated again for accuracy, precision, recall, F1 and ROC-AUC (mean ± std), and finally
-scored once on the 61-patient hold-out set. **Selection rule:** highest mean CV ROC-AUC; the
-hold-out set is never used for selection.
+scored on the 61-patient hold-out set at the fixed 0.4 threshold, with 0.5 results retained for comparison. **Selection rule:** highest mean CV ROC-AUC; the
+hold-out set is never used for selection, even as a tie-breaker. Exact ties keep candidate order. The same folds are reused after tuning, so these CV scores can be optimistic.
 
 ### 4.3 Results
 
 | Model | CV accuracy | CV precision | CV recall | CV ROC-AUC | Test accuracy | Test recall | Test ROC-AUC |
 |-------|-------------|--------------|-----------|------------|---------------|-------------|--------------|
-| logreg_baseline | 0.847 ± 0.010 | 0.877 | 0.783 | 0.905 ± 0.015 | 0.885 | 0.929 | 0.969 |
-| **logreg (selected)** | 0.839 ± 0.016 | 0.870 | 0.774 | **0.905 ± 0.013** | 0.885 | 0.929 | **0.970** |
-| random_forest | 0.806 ± 0.027 | 0.807 | 0.765 | 0.894 ± 0.027 | 0.885 | 0.929 | 0.963 |
-| gradient_boosting | 0.814 ± 0.028 | 0.822 | 0.774 | 0.881 ± 0.026 | 0.902 | 0.929 | 0.958 |
+| logreg_baseline | 0.843 ± 0.037 | 0.824 | 0.846 | 0.904 ± 0.015 | 0.885 | 0.964 | 0.969 |
+| logreg (selected) | 0.810 ± 0.035 | 0.763 | 0.855 | 0.905 ± 0.013 | 0.869 | 0.964 | 0.970 |
+| random_forest | 0.781 ± 0.048 | 0.741 | 0.810 | 0.891 ± 0.027 | 0.853 | 0.964 | 0.964 |
+| gradient_boosting | 0.789 ± 0.022 | 0.762 | 0.810 | 0.883 ± 0.026 | 0.836 | 0.929 | 0.958 |
 
-Selected hyper-parameters: `C = 0.3`, `penalty = l1`, `class_weight = balanced`.
+All label-based metrics above use threshold **0.4**; ROC-AUC uses probabilities.
+
+Selected hyper-parameters: `C = 0.3`, `class_weight = balanced`, `penalty = l1`.
 
 ![Figure 6 – Hold-out ROC curves for all candidates](figures/models/roc_all_models.png)
 
 ![Figure 7 – Selected model: confusion matrix, ROC and PR curves](figures/models/logreg_evaluation.png)
 
-**Discussion.** On 303 patients the linear models beat both tree ensembles in cross-validation
-and have lower variance across folds. The two logistic-regression variants are statistically
-indistinguishable (difference 0.001 AUC, well within one standard deviation), which means the
-engineered features add little on top of the raw codes; the L1 penalty in fact set
-`hr_reserve_pct` and `chol_per_age` to zero and kept only `st_risk_flag`. The selected model was
-kept because it is the rule-based winner, is fully interpretable (largest coefficients:
-`cp = 4`, `thal = 7`, `sex`, `ca = 0` with a negative sign), and its `balanced` class weight
-favours recall — on the hold-out set it misses only 2 of 28 disease cases. Hold-out scores are
-higher than CV scores because the test split is small (61 rows); the CV figures are the more
-reliable estimate.
+**Discussion.** I would keep `logreg` because it is the winner under the training CV selection rule, with mean ROC-AUC 0.9052. The raw-feature logistic model scores 0.9045, compared with 0.9052 for the version with engineered features. I do not take a small difference on this dataset as proof that the extra features help. The age × ST-depression feature is an experiment, and the baseline remains a useful check on whether that extra complexity is worthwhile. The exported model gives `age_oldpeak` a zero coefficient under L1 regularisation, so I cannot claim that the new interaction improved the selected model.
+
+I fixed the threshold at 0.4 before evaluation to favour recall. For the selected model, mean CV recall changes from 0.7739 at 0.5 to 0.8553 at 0.4, while precision changes from 0.8696 to 0.7631. On the hold-out set, recall is 0.9643 and precision is 0.7941. The comparison CSV retains both thresholds, the confusion matrices use 0.4, and the API reads 0.4 from metadata. This is a project-level trade-off, not a clinically validated operating point.
+
+There are only 61 hold-out records, and the same CV folds were used to tune and score each candidate. I would not claim statistical equivalence or clinical performance from these results. Nested CV and a fresh external dataset would give a stronger check, especially because this project's hold-out results have already been reviewed during development.
 
 ## 5. Experiment tracking (MLflow)
 
@@ -163,7 +153,7 @@ The parent run additionally stores the model comparison table, the ROC overlay a
 
 - The complete pipeline (feature builder, imputers, scaler, encoder and classifier) is saved as
   one object in `models/model.joblib`; the same model is also stored in MLflow format.
-- `models/model_meta.json` records model name, version, MLflow run IDs, hyper-parameters,
+- `models/model_meta.json` records model name, version, MLflow run IDs, hyper-parameters, engineered features, quality-gate limits,
   metrics, the input feature order, decision threshold and the scikit-learn version.
 - All random seeds are fixed (`RANDOM_STATE = 42`), library versions are pinned, and every stage
   runs from a clean environment with `make install data train`.
@@ -173,7 +163,7 @@ The parent run additionally stores the model comparison table, the ROC overlay a
 
 ### 7.1 Tests
 
-The `tests/` folder contains 37 pytest tests that need no network or real dataset (they use a
+The `tests/` folder contains 48 pytest tests that need no network or real dataset (they use a
 synthetic fixture):
 
 - **data:** target binarisation, `?` handling, out-of-range nulling, duplicates, schema errors;
@@ -188,7 +178,7 @@ synthetic fixture):
 | lint | flake8 | `flake8-report.txt` |
 | k8s-validate | kustomize build, kubeconform (k8s 1.31 schemas) | rendered manifests |
 | test | pytest + coverage | JUnit XML, coverage XML |
-| train | download → EDA → train → quality gate (CV AUC ≥ 0.85) → job summary | model, MLflow store, reports, logs |
+| train | download → EDA → train → quality gate (CV AUC ≥ 0.85 and mean CV recall ≥ 0.80 at threshold 0.4) → job summary | model, MLflow store, reports, logs |
 | docker | build image with new model → run → smoke test → push to GHCR (main) | container logs |
 
 Jobs are chained with `needs`, so a lint error, a failing test, a model below the quality gate or
@@ -259,11 +249,11 @@ the image, apply manifests, wait for rollout and run the smoke test against the 
 
 ## 11. Conclusions and future work
 
-The project delivers a reproducible pipeline from raw data to a monitored API on Kubernetes,
-with a regularised logistic regression reaching 0.905 CV ROC-AUC and 93 % hold-out recall.
-Possible next steps: probability calibration and a recall-oriented decision threshold, data-drift
-tests (e.g. PSI per feature) on logged requests, a remote MLflow tracking server with a model
-promotion workflow, and a Helm chart with separate environments.
+I now have a shared pipeline that prepares the data, compares four models, tracks runs in MLflow, and exports a model for the API. In this run, `logreg` achieved 0.9052 mean CV ROC-AUC and 0.8553 mean CV recall at threshold 0.4. Hold-out recall was 0.9643. These numbers describe this experiment, rather than expected performance on new patient populations.
+
+The three changes I made are an age × ST-depression feature in place of cholesterol-per-age, a fixed recall-oriented threshold used in both evaluation and serving, and a recall gate alongside the existing AUC gate in CI. The feature is still experimental, and lower thresholds can increase false positives. I would next check probability calibration, validate the model and threshold on new data, and add data-drift checks and a model-promotion workflow. The existing deployment and monitoring setup provides a place to apply those checks; it does not remove the need for validation.
+
+The existing Word report and deployment screenshots predate this revision; `REPORT.md`, the executed notebooks, and the new training artifacts are the updated evidence.
 
 ## 12. Links
 
