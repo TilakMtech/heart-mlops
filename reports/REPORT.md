@@ -2,7 +2,7 @@
 
 **Course:** AIMLCZG523 Machine Learning Operations – Assignment 01
 **Student:** Tilak (B. Mamidipalli) · **BITS ID:** <your-id>
-**Repository:** <https://github.com/your-username/heart-mlops>
+**Repository:** <https://github.com/TilakMtech/heart-mlops>
 **Date:** October 2026
 
 ## 1. Introduction and objective
@@ -257,6 +257,6 @@ The existing Word report and deployment screenshots predate this revision; `REPO
 
 ## 12. Links
 
-- Code repository: <https://github.com/your-username/heart-mlops>
+- Code repository: <https://github.com/TilakMtech/heart-mlops>
 - API access: see README §6–7 (local Docker on port 8000, or Minikube service / Ingress `heart-api.local`)
 - Demo video: <link to your recording>
