@@ -1,7 +1,7 @@
 # Heart Disease Risk Prediction – End-to-End MLOps Pipeline
 
 **Course:** AIMLCZG523 Machine Learning Operations – Assignment 01
-**Student:** Tilak (B. Mamidipalli) · **BITS ID:** <your-id>
+**Student:** Bala Gangadhara Tilak · **BITS ID:** 2025AE05975
 **Repository:** <https://github.com/TilakMtech/heart-mlops>
 **Date:** October 2026
 
