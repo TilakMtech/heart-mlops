@@ -112,13 +112,13 @@ hold-out set is never used for selection, even as a tie-breaker. Exact ties keep
 | Model | CV accuracy | CV precision | CV recall | CV ROC-AUC | Test accuracy | Test recall | Test ROC-AUC |
 |-------|-------------|--------------|-----------|------------|---------------|-------------|--------------|
 | logreg_baseline | 0.843 ± 0.037 | 0.824 | 0.846 | 0.904 ± 0.015 | 0.885 | 0.964 | 0.969 |
-| logreg (selected) | 0.810 ± 0.035 | 0.763 | 0.855 | 0.905 ± 0.013 | 0.869 | 0.964 | 0.970 |
-| random_forest | 0.781 ± 0.048 | 0.741 | 0.810 | 0.891 ± 0.027 | 0.853 | 0.964 | 0.964 |
+| logreg | 0.810 ± 0.035 | 0.763 | 0.855 | 0.905 ± 0.013 | 0.869 | 0.964 | 0.970 |
+| random_forest | 0.781 ± 0.048 | 0.741 | 0.810 | 0.891 ± 0.026 | 0.853 | 0.964 | 0.965 |
 | gradient_boosting | 0.789 ± 0.022 | 0.762 | 0.810 | 0.883 ± 0.026 | 0.836 | 0.929 | 0.958 |
 
 All label-based metrics above use threshold **0.4**; ROC-AUC uses probabilities.
 
-Selected hyper-parameters: `C = 0.3`, `class_weight = balanced`, `penalty = l1`.
+Selected hyper-parameters: 'C: 0.3', 'class_weight: balanced', 'penalty: l1'.
 
 ![Figure 6 – Hold-out ROC curves for all candidates](figures/models/roc_all_models.png)
 
