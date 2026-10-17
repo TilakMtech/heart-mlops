@@ -17,7 +17,7 @@ The project uses 303 Cleveland records and 13 input measurements. Cleaning and f
 
 | Step | Command |
 |------|---------|
-| Create environment | `python3.11 -m venv .venv && source .venv/bin/activate` |
+| Create environment | `python3 -m venv .venv && source .venv/bin/activate` (Python 3.11 or 3.12) |
 | Install | `pip install -r requirements-dev.txt` (or `conda env create -f environment.yml`) |
 | Data | `make data` |
 | EDA | `make eda` |
@@ -30,6 +30,11 @@ The project uses 303 Cleveland records and 13 input measurements. Cleaning and f
 Dependencies are pinned in three layers: `requirements-serve.txt` (only what the API needs — keeps
 the image small), `requirements.txt` (adds training, plotting and MLflow) and `requirements-dev.txt`
 (adds pytest, flake8, Jupyter).
+
+**Execution environment.** The pipeline was executed end-to-end in the BITS lab:
+Linux (x86_64, 4 vCPU, 15 GB RAM), Python 3.12.9, Docker 28.0.1, Minikube v1.35.0 (docker driver),
+kubectl v1.31.1. The Docker image and the GitHub Actions jobs use Python 3.11; the code and pinned
+dependencies are tested on both 3.11 and 3.12.
 
 ## 3. Data acquisition and EDA
 

@@ -25,11 +25,11 @@ UCI Cleveland dataset and serves it as a monitored, containerised API on Kuberne
 
 ## 1. Setup
 
-Requires Python 3.11, Docker, and (for deployment) Minikube + kubectl.
+Requires Python 3.11 or 3.12, Docker, and (for deployment) Minikube + kubectl.
 
 ```bash
 git clone https://github.com/TilakMtech/heart-mlops.git heart-mlops && cd heart-mlops
-python3.11 -m venv .venv && source .venv/bin/activate     # Windows: .venv\Scripts\activate
+python3 -m venv .venv && source .venv/bin/activate     # Windows: .venv\Scripts\activate
 pip install -r requirements-dev.txt                        # or: conda env create -f environment.yml
 ```
 
