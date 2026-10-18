@@ -1,8 +1,8 @@
 {
   "model_name": "logreg",
-  "version": "2026.10.18-2123",
-  "mlflow_parent_run": "5b4e73eaf6574a7a8bfa87b84ae33926",
-  "mlflow_run_id": "0ab05c7f593543e0b0f3455b60a5b2a2",
+  "version": "2026.10.19-0151",
+  "mlflow_parent_run": "66db0b96c6714284accb81213d33523e",
+  "mlflow_run_id": "ccd218e822b04ec98b79f4f216931ae9",
   "best_params": {
     "C": 0.3,
     "class_weight": "balanced",
@@ -62,5 +62,5 @@
     "min_cv_recall": 0.8
   },
   "sklearn_version": "1.5.2",
-  "trained_at": "2026-10-18T21:23:46"
+  "trained_at": "2026-10-19T01:51:39"
 }

@@ -9,7 +9,7 @@ trap 'echo; echo "!!!! FAILED at step: $STEP  - paste the lines above to Claude"
 
 step "1 repo"
 git pull --ff-only || true
-git log --oneline | head -3
+git log --oneline -3
 
 step "2 tools"
 command -v make >/dev/null || sudo dnf install -y make || sudo yum install -y make
@@ -18,9 +18,9 @@ if ! command -v kubectl >/dev/null; then
   sudo install -m 0755 kubectl /usr/local/bin/kubectl
   rm -f kubectl
 fi
-make --version | head -1
+make --version 2>&1 | sed -n 1p
 kubectl version --client
-minikube version | head -1
+minikube version 2>&1 | sed -n 1p
 docker ps >/dev/null && echo "docker OK"
 
 step "3 python env"
